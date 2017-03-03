@@ -2,7 +2,7 @@
 
 const winston = require('winston'),
 	inspector = require('schema-inspector'),
-	utils = require('./utils.js'),
+	utils = require('blad-utils'),
 	configSchema = {
 		type: 'object',
 		strict: true,
@@ -74,32 +74,8 @@ let configuration = {
 	}
 };
 
-/*
-	Fuse two object together, based on the first object schema.
-	If the second object have a new value for the key of the same type,
-	it will replace it.
-*/
-function fuse(a, b) {
-	//log.silly('fuse', {a, b});
-	//console.log('fuse: \na:' + a + '\nb: ' + b);
-	let c = {};
-
-	Object.keys(a).map((key) => {
-		if(typeof a[key] === 'object') {
-			c[key] = fuse(a[key], b[key]);
-		} else if(b && b[key] && typeof a[key] === typeof b[key]) {
-			c[key] = b[key];
-		} else {
-			c[key] = a[key];
-		}
-	});
-	//log.silly('fuse', {c});
-	//console.log('fuse: \nc:' + c);
-	return c;
-}
-
 function compileConfig(config) {
-	let c = fuse(configuration, config);
+	let c = utils.fuse(configuration, config);
 	if(inspector.validate(configSchema, c)) {
 		return c;
 	} else {
@@ -128,7 +104,7 @@ let Logger = class Logger {
 			}));
 		}
 		if(config.file.active) {
-			utils.createLogPath(config.logpath, file);
+			createLogPath(config.logpath, file);
 			transports.push(new (winston.transports.File)({
 				filename: config.logpath + file,
 				timestamp: true

@@ -1,7 +1,6 @@
 {
-  "name": "blad-logs",
+  "name": "blad-logger",
   "version": "1.0.0",
-  "description": "",
   "main": "log.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,9 +9,16 @@
   "license": "MIT",
   "dependencies": {
     "schema-inspector": "^1.6.8",
-    "winston": "^2.3.1"
+    "winston": "^2.3.1",
+    "winston-mongodb": "^2.0.8"
   },
   "optionalDependencies": {
     "winston-mongodb": "^2.0.8"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git@d219:D219/BLaD_Logs.git"
+  },
+  "description": ""
 }
