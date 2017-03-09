@@ -95,8 +95,16 @@ winston.setLevels(levels);
 */
 function fuse(a, b) {
 	// log.silly('fuse', {a, b});
-	//console.log('fuse: \na:' + a + '\nb: ' + b);
+	// console.log('fuse: \na:' + require('util').inspect(a) + '\nb:' + require('util').inspect(b));
 	let c = {};
+
+	if(!a) {
+		return b;
+	}
+
+	if(!b) {
+		return a;
+	}
 
 	Object.keys(a).map((key) => {
 		if(typeof a[key] === 'object') {
@@ -108,7 +116,7 @@ function fuse(a, b) {
 		}
 	});
 	// log.silly('fuse', {c});
-	//console.log('fuse: \nc:' + c);
+	// console.log('fuse: \nc:' + require('util').inspect(c));
 	return c;
 }
 
@@ -150,65 +158,142 @@ function createLogPath(logPath, file) {
 	});
 }
 
-function init(config) {
+function configure(config) {
 	configuration = compileConfig(config);
+	// console.log('configure: ' + require('util').inspect(configuration));
+	loggers.map((logger) => {
+		logger.configure(configuration);
+	});
 }
+
+function getTransports(file, config) {
+	let transports = [];
+	if(config.console.active) {
+		transports.push(new (winston.transports.Console)({
+			timestamp: true,
+			prettyPrint: true,
+			depth: null,
+			level: config.console.level
+		}));
+	}
+	if(config.file.active) {
+		createLogPath(config.logpath, file);
+		transports.push(new (winston.transports.File)({
+			filename: config.logpath + file,
+			timestamp: true
+		}));
+	}
+	if(config.mongo.active) {
+		require('winston-mongodb');
+		transports.push(new (winston.transports.MongoDB)({
+			timestamp: true,
+			level: config.mongo.level,
+			name: config.mongo.db + config.mongo.collection,
+			safe: config.mongo.safe,
+			collection: config.mongo.collection,
+			db: config.mongo.db
+		}));
+	}
+
+	return transports;
+}
+
+function getWinstonConfiguration(file, config) {
+	return {
+		rewriters: [
+			(level, message, meta) => {
+				if(meta && meta.error instanceof Error) {
+					meta.error = {
+						name: meta.error.name,
+						message: meta.error.message,
+						stack: meta.error.stack
+					};
+				}
+				return meta;
+			},
+			(level, message, meta) => {
+				meta.app = file;
+				return meta;
+			}
+		],
+		transports: getTransports(file, config)
+	};
+}
+
+let loggers = [];
 
 let Logger = class Logger {
 	constructor(file, conf) {
-		//Get the fusion between global config and local config
-		let config = compileConfig(configuration, conf),
-			transports = [];
+		this.file = file;
 
+		//Get the fusion between global config and local config
+		let config = compileConfig(conf);
+
+		this.config = config;
 		//console.log('log:' + JSON.stringify({file, config}));
 
-		if(config.console.active) {
-			transports.push(new (winston.transports.Console)({
-				timestamp: true,
-				prettyPrint: true,
-				depth: null,
-				level: config.console.level
-			}));
-		}
-		if(config.file.active) {
-			createLogPath(config.logpath, file);
-			transports.push(new (winston.transports.File)({
-				filename: config.logpath + file,
-				timestamp: true
-			}));
-		}
-		if(config.mongo.active) {
-			require('winston-mongodb');
-			transports.push(new (winston.transports.MongoDB)({
-				timestamp: true,
-				level: config.mongo.level,
-				name: config.mongo.db + config.mongo.collection,
-				safe: config.mongo.safe,
-				collection: config.mongo.collection,
-				db: config.mongo.db
-			}));
-		}
-		return new winston.Logger({
-			rewriters: [
-				(level, message, meta) => {
-					if(meta && meta.error instanceof Error) {
-						meta.error = {
-							name: meta.error.name,
-							message: meta.error.message,
-							stack: meta.error.stack
-						};
-					}
-					return meta;
-				},
-				(level, message, meta) => {
-					meta.app = file;
-					return meta;
-				}
-			],
-			transports: transports
-		});
+		let w = new winston.Logger(getWinstonConfiguration(file, config));
+		this.logger = w;
+		loggers.push(this);
+	}
+
+	configure(config) {
+		let conf = compileConfig(config);
+
+		this.config = conf;
+
+		this.logger.configure(
+			getWinstonConfiguration(
+				this.file,
+				conf
+			)
+		);
+	}
+
+	getConfiguration() {
+		return this.config;
+	}
+
+	unlink() {
+		loggers.splice(loggers.indexOf(this.logger));
+	}
+
+	emerg(...args) {
+		this.logger.emerg(...args);
+	}
+
+	alert(...args) {
+		this.logger.alert(...args);
+	}
+
+	crit(...args) {
+		this.logger.crit(...args);
+	}
+
+	error(...args) {
+		this.logger.error(...args);
+	}
+
+	warning(...args) {
+		this.logger.warning(...args);
+	}
+
+	notice(...args) {
+		this.logger.notice(...args);
+	}
+
+	info(...args) {
+		this.logger.info(...args);
+	}
+
+	debug(...args) {
+		this.logger.debug(...args);
+	}
+
+	silly(...args) {
+		this.logger.silly(...args);
 	}
 };
 
-Logger.init = init;
+Logger.configure = configure;
 module.exports = Logger;
