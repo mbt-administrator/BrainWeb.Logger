@@ -86,8 +86,6 @@ let configuration = {
 	}
 };
 
-winston.setLevels(levels);
-
 /*
 	Fuse two object together, based on the first object schema.
 	If the second object have a new value for the key of the same type,
@@ -120,6 +118,10 @@ function fuse(a, b) {
 	return c;
 }
 
+/*
+	Compare the saved configuration with the new one, and return the new
+	configuration
+*/
 function compileConfig(config) {
 	let c = fuse(configuration, config);
 	if(inspector.validate(configSchema, c)) {
@@ -129,6 +131,10 @@ function compileConfig(config) {
 	}
 }
 
+/*
+	Ensure that the file can be created by trying to create each folder that 
+	lead to it
+*/
 function createLogPath(logPath, file) {
 	//Get folders to be created
 	let folders = file.split('/');
@@ -158,6 +164,8 @@ function createLogPath(logPath, file) {
 	});
 }
 
+//Logger.configure
+//Reconfigure every logger created
 function configure(config) {
 	configuration = compileConfig(config);
 	// console.log('configure: ' + require('util').inspect(configuration));
@@ -166,6 +174,7 @@ function configure(config) {
 	});
 }
 
+//Return the transports that will be used by Winston for that configuration
 function getTransports(file, config) {
 	let transports = [];
 	if(config.console.active) {
@@ -198,8 +207,10 @@ function getTransports(file, config) {
 	return transports;
 }
 
+//Transform the Logger constructor's input to a Winston compatible configuration
 function getWinstonConfiguration(file, config) {
 	return {
+		levels,
 		rewriters: [
 			(level, message, meta) => {
 				if(meta && meta.error instanceof Error) {
@@ -220,6 +231,10 @@ function getWinstonConfiguration(file, config) {
 	};
 }
 
+/*
+	Remember all created logger. Allow to reconfigure them all at the same time
+	on Logger.configure
+*/
 let loggers = [];
 
 let Logger = class Logger {
