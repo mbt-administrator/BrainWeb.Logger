@@ -20,6 +20,18 @@
 		"semi": [
 			"error",
 			"always"
-		]
+		],
+		"max-len": ["warn"/*, {
+			"code": 80,
+			"comments": 80,
+			"tabWidth": 4,
+			"ignorePattern": true,
+			"ignoreComments": false,
+			"ignoreTrailingComments": false,
+			"ignoreUrls": true,
+			"ignoreStrings": true,
+			"ignoreTemplateLiterals": true,
+			"ignoreRegExpLiterals": true
+		}*/]
 	}
 }
