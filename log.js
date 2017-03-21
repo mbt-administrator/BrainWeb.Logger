@@ -93,7 +93,10 @@ let configuration = {
 */
 function fuse(a, b) {
 	// log.silly('fuse', {a, b});
-	// console.log('fuse: \na:' + require('util').inspect(a) + '\nb:' + require('util').inspect(b));
+	// console.log(
+	// 	'fuse: \na:' + require('util').inspect(a) +
+	// 	'\nb:' + require('util').inspect(b)
+	// );
 	let c = {};
 
 	if(!a) {
@@ -186,9 +189,10 @@ function getTransports(file, config) {
 		}));
 	}
 	if(config.file.active) {
-		createLogPath(config.logpath, file);
+		createLogPath(config.file.logpath, file);
 		transports.push(new (winston.transports.File)({
-			filename: config.logpath + file,
+			// filename: config.file.logpath + file,
+			filename: config.file.logpath + 'all.log',
 			timestamp: true
 		}));
 	}
