@@ -1,7 +1,6 @@
 'use strict';
 
-const winston = require('winston'),
-	inspector = require('schema-inspector'),
+const inspector = require('schema-inspector'),
 	fs = require('fs'),
 	//RFC5424 + silly
 	levels = {
@@ -177,6 +176,11 @@ function configure(config) {
 	});
 }
 
+/*
+	DEPENDENCY_
+*/
+const winston = require('winston');
+
 //Return the transports that will be used by Winston for that configuration
 function getTransports(file, config) {
 	let transports = [];
@@ -212,7 +216,7 @@ function getTransports(file, config) {
 }
 
 //Transform the Logger constructor's input to a Winston compatible configuration
-function getWinstonConfiguration(file, config) {
+function getLoggerConfiguration(file, config) {
 	return {
 		levels,
 		rewriters: [
@@ -235,6 +239,13 @@ function getWinstonConfiguration(file, config) {
 	};
 }
 
+function getLogger(file, config) {
+	return new winston.Logger(getLoggerConfiguration(file, config));
+}
+/*
+	_DEPENDENCY
+*/
+
 /*
 	Remember all created logger. Allow to reconfigure them all at the same time
 	on Logger.configure
@@ -243,6 +254,12 @@ let loggers = [];
 
 let Logger = class Logger {
 	constructor(file, conf) {
+		if(
+			!file ||
+			typeof file !== 'string'
+		) {
+			file = '';
+		}
 		this.file = file;
 
 		//Get the fusion between global config and local config
@@ -251,7 +268,7 @@ let Logger = class Logger {
 		this.config = config;
 		//console.log('log:' + JSON.stringify({file, config}));
 
-		let w = new winston.Logger(getWinstonConfiguration(file, config));
+		let w = getLogger(file, config);
 		this.logger = w;
 		loggers.push(this);
 	}
@@ -262,7 +279,7 @@ let Logger = class Logger {
 		this.config = conf;
 
 		this.logger.configure(
-			getWinstonConfiguration(
+			getLoggerConfiguration(
 				this.file,
 				conf
 			)
