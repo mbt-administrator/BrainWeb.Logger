@@ -92,11 +92,6 @@ let configuration = {
 	it will replace it.
 */
 function fuse(a, b) {
-	// log.silly('fuse', {a, b});
-	// console.log(
-	// 	'fuse: \na:' + require('util').inspect(a) +
-	// 	'\nb:' + require('util').inspect(b)
-	// );
 	let c = {};
 
 	if(!a) {
@@ -116,8 +111,6 @@ function fuse(a, b) {
 			c[key] = a[key];
 		}
 	});
-	// log.silly('fuse', {c});
-	// console.log('fuse: \nc:' + require('util').inspect(c));
 	return c;
 }
 
@@ -135,18 +128,18 @@ function compileConfig(config) {
 }
 
 /*
-	Ensure that the file can be created by trying to create each folder that 
+	Ensure that the file can be created by trying to create each folder that
 	lead to it
 */
-function createLogPath(logPath, file) {
+function createLogPath(logPath) {
 	//Get folders to be created
-	let folders = file.split('/');
+	let folders = (logPath).split('/');
 	folders.pop();
 
 	//Build the paths to the folders
 	folders.map((e, n, folders) => {
 		let i = 0,
-			path = 0;
+			path = '';
 
 		while(i <= n) {
 			path = path + folders[i] + '/';
@@ -171,7 +164,6 @@ function createLogPath(logPath, file) {
 //Reconfigure every logger created
 function configure(config) {
 	configuration = compileConfig(config);
-	// console.log('configure: ' + require('util').inspect(configuration));
 	loggers.map((logger) => {
 		logger.configure(configuration);
 	});
@@ -189,9 +181,8 @@ function getTransports(file, config) {
 		}));
 	}
 	if(config.file.active) {
-		createLogPath(config.file.logpath, file);
+		createLogPath(config.file.logpath);
 		transports.push(new (winston.transports.File)({
-			// filename: config.file.logpath + file,
 			filename: config.file.logpath + 'all.log',
 			timestamp: true
 		}));
@@ -249,7 +240,6 @@ let Logger = class Logger {
 		let config = compileConfig(conf);
 
 		this.config = config;
-		//console.log('log:' + JSON.stringify({file, config}));
 
 		let w = new winston.Logger(getWinstonConfiguration(file, config));
 		this.logger = w;
