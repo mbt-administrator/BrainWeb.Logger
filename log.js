@@ -5,15 +5,17 @@ const winston = require('winston'),
 	fs = require('fs'),
 	//RFC5424 + silly
 	levels = {
-		emerg: 0,
-		alert: 1,
-		crit: 2,
-		error: 3,
-		warning: 4,
-		notice: 5,
-		info: 6,
-		debug: 7,
-		silly: 8
+		silent: 0,
+		quiet: 0,
+		emerg: 1,
+		alert: 2,
+		crit: 3,
+		error: 4,
+		warning: 5,
+		notice: 6,
+		info: 7,
+		debug: 8,
+		silly: 9
 	},
 	configSchema = {
 		type: 'object',
@@ -267,6 +269,10 @@ let Logger = class Logger {
 		loggers.splice(loggers.indexOf(this.logger));
 	}
 
+	silent() {}
+
+	quiet() {}
+
 	emerg(...args) {
 		this.logger.emerg(...args);
 	}
@@ -305,4 +311,6 @@ let Logger = class Logger {
 };
 
 Logger.configure = configure;
+Logger.reconfigure = configure;
+
 module.exports = Logger;
