@@ -80,7 +80,7 @@ let configuration = {
 	mongo: {
 		active: false,
 		level: 'debug',
-		db: 'mongo://localhost:27017/',
+		db: 'mongodb://localhost:27017/',
 		safe: true
 	}
 };
@@ -252,7 +252,7 @@ function getLogger(file, config) {
 */
 let loggers = [];
 
-let Logger = class Logger {
+const Logger = class Logger {
 	constructor(file, conf) {
 		if(
 			!file ||
