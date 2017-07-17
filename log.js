@@ -18,6 +18,9 @@ const inspector = require('schema-inspector'),
 		type: 'object',
 		strict: true,
 		properties: {
+			strict: {
+				type: 'boolean'
+			},
 			console: {
 				type: 'object',
 				properties: {
@@ -60,7 +63,10 @@ const inspector = require('schema-inspector'),
 						type: 'string',
 						eq: ['silly', 'debug', 'info', 'error', 'fatal']
 					},
-					db: {type: 'string'},
+					db: {
+						type: 'string',
+						pattern: /^mongodb:\/\/[A-Za-z0-9\.:]+\/[A-Za-z0-9\.]+/
+					},
 					safe: {type: 'boolean'}
 				}
 			}
@@ -68,6 +74,7 @@ const inspector = require('schema-inspector'),
 	};
 
 let configuration = {
+	strict: true,
 	console: {
 		active: true,
 		level: 'info'
@@ -80,7 +87,7 @@ let configuration = {
 	mongo: {
 		active: false,
 		level: 'debug',
-		db: 'mongodb://localhost:27017/',
+		db: 'mongodb://localhost:27017/Logs',
 		safe: true
 	}
 };
@@ -90,29 +97,29 @@ let configuration = {
 	If the second object have a new value for the key of the same type,
 	it will replace it.
 */
-function fuse(a, b) {
-	// log.silly('fuse', {a, b});
+function fuse(base, change) {
+	// log.silly('fuse', {base, change});
 	// console.log(
-	// 	'fuse: \na:' + require('util').inspect(a) +
-	// 	'\nb:' + require('util').inspect(b)
+	// 	'fuse: \na:' + require('util').inspect(base) +
+	// 	'\nb:' + require('util').inspect(change)
 	// );
 	let c = {};
 
-	if(!a) {
-		return b;
+	if(!base) {
+		return change;
 	}
 
-	if(!b) {
-		return a;
+	if(!change) {
+		return base;
 	}
 
-	Object.keys(a).map((key) => {
-		if(typeof a[key] === 'object') {
-			c[key] = fuse(a[key], b[key]);
-		} else if(b && b[key] && typeof a[key] === typeof b[key]) {
-			c[key] = b[key];
+	Object.keys(base).map((key) => {
+		if(typeof base[key] === 'object') {
+			c[key] = fuse(base[key], change[key]);
+		} else if(change && change[key]) {
+			c[key] = change[key];
 		} else {
-			c[key] = a[key];
+			c[key] = base[key];
 		}
 	});
 	// log.silly('fuse', {c});
@@ -125,11 +132,17 @@ function fuse(a, b) {
 	configuration
 */
 function compileConfig(config) {
-	let c = fuse(configuration, config);
-	if(inspector.validate(configSchema, c)) {
+	let c = fuse(configuration, config),
+		results = inspector.validate(configSchema, c);
+	// console.log(c);
+	if(results.valid) {
 		return c;
 	} else {
-		return configuration;
+		if(configuration.strict) {
+			throw new Error(results.format());
+		} else {
+			return configuration;
+		}
 	}
 }
 
@@ -170,7 +183,6 @@ function createLogPath(logPath, file) {
 //Reconfigure every logger created
 function configure(config) {
 	configuration = compileConfig(config);
-	// console.log('configure: ' + require('util').inspect(configuration));
 	loggers.map((logger) => {
 		logger.configure(configuration);
 	});
@@ -185,31 +197,38 @@ const winston = require('winston');
 function getTransports(file, config) {
 	let transports = [];
 	if(config.console.active) {
-		transports.push(new (winston.transports.Console)({
+		let console = new (winston.transports.Console)({
 			timestamp: true,
 			prettyPrint: true,
 			depth: null,
 			level: config.console.level
-		}));
+		});
+		transports.push(console);
 	}
 	if(config.file.active) {
-		createLogPath(config.file.logpath, file);
-		transports.push(new (winston.transports.File)({
+		let file = new (winston.transports.File)({
 			// filename: config.file.logpath + file,
 			filename: config.file.logpath + 'all.log',
 			timestamp: true
-		}));
+		});
+		createLogPath(config.file.logpath, file);
+		transports.push(file);
 	}
 	if(config.mongo.active) {
 		require('winston-mongodb');
-		transports.push(new (winston.transports.MongoDB)({
+		let mongo = new (winston.transports.MongoDB)({
 			timestamp: true,
 			level: config.mongo.level,
 			name: config.mongo.db + config.mongo.collection,
 			safe: config.mongo.safe,
 			collection: config.mongo.collection,
 			db: config.mongo.db
-		}));
+		});
+		// mongo.on('error', (error) => {
+		// 	console.log('Error');
+		// 	console.log(error);
+		// });
+		transports.push(mongo);
 	}
 
 	return transports;
