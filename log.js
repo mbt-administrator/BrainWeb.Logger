@@ -4,15 +4,17 @@ const inspector = require('schema-inspector'),
 	fs = require('fs'),
 	//RFC5424 + silly
 	levels = {
-		emerg: 0,
-		alert: 1,
-		crit: 2,
-		error: 3,
-		warning: 4,
-		notice: 5,
-		info: 6,
-		debug: 7,
-		silly: 8
+		silent: 0,
+		quiet: 0,
+		emerg: 1,
+		alert: 2,
+		crit: 3,
+		error: 4,
+		warning: 5,
+		notice: 6,
+		info: 7,
+		debug: 8,
+		silly: 9
 	},
 	configSchema = {
 		type: 'object',
@@ -98,11 +100,6 @@ let configuration = {
 	it will replace it.
 */
 function fuse(base, change) {
-	// log.silly('fuse', {base, change});
-	// console.log(
-	// 	'fuse: \na:' + require('util').inspect(base) +
-	// 	'\nb:' + require('util').inspect(change)
-	// );
 	let c = {};
 
 	if(!base) {
@@ -122,8 +119,6 @@ function fuse(base, change) {
 			c[key] = base[key];
 		}
 	});
-	// log.silly('fuse', {c});
-	// console.log('fuse: \nc:' + require('util').inspect(c));
 	return c;
 }
 
@@ -147,18 +142,18 @@ function compileConfig(config) {
 }
 
 /*
-	Ensure that the file can be created by trying to create each folder that 
+	Ensure that the file can be created by trying to create each folder that
 	lead to it
 */
-function createLogPath(logPath, file) {
+function createLogPath(logPath) {
 	//Get folders to be created
-	let folders = file.split('/');
+	let folders = (logPath).split('/');
 	folders.pop();
 
 	//Build the paths to the folders
 	folders.map((e, n, folders) => {
 		let i = 0,
-			path = 0;
+			path = '';
 
 		while(i <= n) {
 			path = path + folders[i] + '/';
@@ -285,7 +280,6 @@ const Logger = class Logger {
 		let config = compileConfig(conf);
 
 		this.config = config;
-		//console.log('log:' + JSON.stringify({file, config}));
 
 		let w = getLogger(file, config);
 		this.logger = w;
@@ -312,6 +306,10 @@ const Logger = class Logger {
 	unlink() {
 		loggers.splice(loggers.indexOf(this.logger));
 	}
+
+	silent() {}
+
+	quiet() {}
 
 	emerg(...args) {
 		this.logger.emerg(...args);
@@ -351,4 +349,6 @@ const Logger = class Logger {
 };
 
 Logger.configure = configure;
+Logger.reconfigure = configure;
+
 module.exports = Logger;
