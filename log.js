@@ -1,24 +1,28 @@
 'use strict';
 
-const winston = require('winston'),
-	inspector = require('schema-inspector'),
+const inspector = require('schema-inspector'),
 	fs = require('fs'),
 	//RFC5424 + silly
 	levels = {
-		emerg: 0,
-		alert: 1,
-		crit: 2,
-		error: 3,
-		warning: 4,
-		notice: 5,
-		info: 6,
-		debug: 7,
-		silly: 8
+		silent: 0,
+		quiet: 0,
+		emerg: 1,
+		alert: 2,
+		crit: 3,
+		error: 4,
+		warning: 5,
+		notice: 6,
+		info: 7,
+		debug: 8,
+		silly: 9
 	},
 	configSchema = {
 		type: 'object',
 		strict: true,
 		properties: {
+			strict: {
+				type: 'boolean'
+			},
 			console: {
 				type: 'object',
 				properties: {
@@ -61,7 +65,10 @@ const winston = require('winston'),
 						type: 'string',
 						eq: ['silly', 'debug', 'info', 'error', 'fatal']
 					},
-					db: {type: 'string'},
+					db: {
+						type: 'string',
+						pattern: /^mongodb:\/\/[A-Za-z0-9\.:]+\/[A-Za-z0-9\.]+/
+					},
 					safe: {type: 'boolean'}
 				}
 			}
@@ -69,6 +76,7 @@ const winston = require('winston'),
 	};
 
 let configuration = {
+	strict: true,
 	console: {
 		active: true,
 		level: 'info'
@@ -81,7 +89,7 @@ let configuration = {
 	mongo: {
 		active: false,
 		level: 'debug',
-		db: 'mongo://localhost:27017/',
+		db: 'mongodb://localhost:27017/Logs',
 		safe: true
 	}
 };
@@ -91,24 +99,24 @@ let configuration = {
 	If the second object have a new value for the key of the same type,
 	it will replace it.
 */
-function fuse(a, b) {
+function fuse(base, change) {
 	let c = {};
 
-	if(!a) {
-		return b;
+	if(!base) {
+		return change;
 	}
 
-	if(!b) {
-		return a;
+	if(!change) {
+		return base;
 	}
 
-	Object.keys(a).map((key) => {
-		if(typeof a[key] === 'object') {
-			c[key] = fuse(a[key], b[key]);
-		} else if(b && b[key] && typeof a[key] === typeof b[key]) {
-			c[key] = b[key];
+	Object.keys(base).map((key) => {
+		if(typeof base[key] === 'object') {
+			c[key] = fuse(base[key], change[key]);
+		} else if(change && change[key]) {
+			c[key] = change[key];
 		} else {
-			c[key] = a[key];
+			c[key] = base[key];
 		}
 	});
 	return c;
@@ -119,11 +127,17 @@ function fuse(a, b) {
 	configuration
 */
 function compileConfig(config) {
-	let c = fuse(configuration, config);
-	if(inspector.validate(configSchema, c)) {
+	let c = fuse(configuration, config),
+		results = inspector.validate(configSchema, c);
+	// console.log(c);
+	if(results.valid) {
 		return c;
 	} else {
-		return configuration;
+		if(configuration.strict) {
+			throw new Error(results.format());
+		} else {
+			return configuration;
+		}
 	}
 }
 
@@ -169,41 +183,54 @@ function configure(config) {
 	});
 }
 
+/*
+	DEPENDENCY_
+*/
+const winston = require('winston');
+
 //Return the transports that will be used by Winston for that configuration
 function getTransports(file, config) {
 	let transports = [];
 	if(config.console.active) {
-		transports.push(new (winston.transports.Console)({
+		let console = new (winston.transports.Console)({
 			timestamp: true,
 			prettyPrint: true,
 			depth: null,
 			level: config.console.level
-		}));
+		});
+		transports.push(console);
 	}
 	if(config.file.active) {
-		createLogPath(config.file.logpath);
-		transports.push(new (winston.transports.File)({
+		let file = new (winston.transports.File)({
+			// filename: config.file.logpath + file,
 			filename: config.file.logpath + 'all.log',
 			timestamp: true
-		}));
+		});
+		createLogPath(config.file.logpath, file);
+		transports.push(file);
 	}
 	if(config.mongo.active) {
 		require('winston-mongodb');
-		transports.push(new (winston.transports.MongoDB)({
+		let mongo = new (winston.transports.MongoDB)({
 			timestamp: true,
 			level: config.mongo.level,
 			name: config.mongo.db + config.mongo.collection,
 			safe: config.mongo.safe,
 			collection: config.mongo.collection,
 			db: config.mongo.db
-		}));
+		});
+		// mongo.on('error', (error) => {
+		// 	console.log('Error');
+		// 	console.log(error);
+		// });
+		transports.push(mongo);
 	}
 
 	return transports;
 }
 
 //Transform the Logger constructor's input to a Winston compatible configuration
-function getWinstonConfiguration(file, config) {
+function getLoggerConfiguration(file, config) {
 	return {
 		levels,
 		rewriters: [
@@ -226,14 +253,27 @@ function getWinstonConfiguration(file, config) {
 	};
 }
 
+function getLogger(file, config) {
+	return new winston.Logger(getLoggerConfiguration(file, config));
+}
+/*
+	_DEPENDENCY
+*/
+
 /*
 	Remember all created logger. Allow to reconfigure them all at the same time
 	on Logger.configure
 */
 let loggers = [];
 
-let Logger = class Logger {
+const Logger = class Logger {
 	constructor(file, conf) {
+		if(
+			!file ||
+			typeof file !== 'string'
+		) {
+			file = '';
+		}
 		this.file = file;
 
 		//Get the fusion between global config and local config
@@ -241,7 +281,7 @@ let Logger = class Logger {
 
 		this.config = config;
 
-		let w = new winston.Logger(getWinstonConfiguration(file, config));
+		let w = getLogger(file, config);
 		this.logger = w;
 		loggers.push(this);
 	}
@@ -252,7 +292,7 @@ let Logger = class Logger {
 		this.config = conf;
 
 		this.logger.configure(
-			getWinstonConfiguration(
+			getLoggerConfiguration(
 				this.file,
 				conf
 			)
@@ -266,6 +306,10 @@ let Logger = class Logger {
 	unlink() {
 		loggers.splice(loggers.indexOf(this.logger));
 	}
+
+	silent() {}
+
+	quiet() {}
 
 	emerg(...args) {
 		this.logger.emerg(...args);
@@ -305,4 +349,6 @@ let Logger = class Logger {
 };
 
 Logger.configure = configure;
+Logger.reconfigure = configure;
+
 module.exports = Logger;
