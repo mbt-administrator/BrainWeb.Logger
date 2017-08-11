@@ -2,7 +2,7 @@
 
 const inspector = require('schema-inspector'),
 	fs = require('fs'),
-	//RFC5424 + silly
+	//RFC 5424 + silly + silent/quiet
 	levels = {
 		silent: 0,
 		quiet: 0,
@@ -160,9 +160,7 @@ function createLogPath(logPath) {
 			i = i + 1;
 		}
 		return path;
-	})
-	//Create the paths
-	.forEach((folder) => {
+	}).forEach((folder) => { 	//Create the paths
 		try {
 			fs.mkdirSync(folder);
 		} catch (error) {
