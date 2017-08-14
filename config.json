@@ -1,0 +1,18 @@
+{
+	"strict": true,
+	"console": {
+		"active": true,
+		"level": "info"
+	},
+	"file": {
+		"active": false,
+		"level": "debug",
+		"logpath": "./logs/"
+	},
+	"mongo": {
+		"active": false,
+		"level": "debug",
+		"db": "mongodb://localhost:27017/Logs",
+		"safe": true
+	}
+}

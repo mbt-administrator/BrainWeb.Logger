@@ -52,7 +52,7 @@ const inspector = require('schema-inspector'),
 							./foo/ => true
 							./foo/bar/ => true
 						*/
-						pattern: /^\.?\/([a-zA-Z0-9\.]*\/)*$/,
+						pattern: /^\.?\/([a-zA-Z0-9.]*\/)*$/,
 						optionnal: true
 					}
 				}
@@ -67,7 +67,7 @@ const inspector = require('schema-inspector'),
 					},
 					db: {
 						type: 'string',
-						pattern: /^mongodb:\/\/[A-Za-z0-9\.:]+\/[A-Za-z0-9\.]+/
+						pattern: /^mongodb:\/\/[A-Za-z0-9.:]+\/[A-Za-z0-9.]+/
 					},
 					safe: {type: 'boolean'}
 				}
@@ -75,24 +75,7 @@ const inspector = require('schema-inspector'),
 		}
 	};
 
-let configuration = {
-	strict: true,
-	console: {
-		active: true,
-		level: 'info'
-	},
-	file: {
-		active: false,
-		level: 'debug',
-		logpath: './logs/'
-	},
-	mongo: {
-		active: false,
-		level: 'debug',
-		db: 'mongodb://localhost:27017/Logs',
-		safe: true
-	}
-};
+let configuration = require('./config.json');
 
 /*
 	Fuse two object together, based on the first object schema.
